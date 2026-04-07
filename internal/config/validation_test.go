@@ -13,13 +13,13 @@ import (
 	"k8s.io/utils/ptr"
 )
 
-// peerOnNodes returns a BGPPeer selecting nodes by hostname (OR semantics).
-func peerOnNodes(addr string, hostnames ...string) v1beta2.BGPPeer {
+// peerOnNodes returns a BGPPeer for address "1.2.3.4" selecting nodes by hostname (OR semantics).
+func peerOnNodes(hostnames ...string) v1beta2.BGPPeer {
 	sels := make([]v1.LabelSelector, len(hostnames))
 	for i, h := range hostnames {
 		sels[i] = v1.LabelSelector{MatchLabels: map[string]string{"kubernetes.io/hostname": h}}
 	}
-	return v1beta2.BGPPeer{Spec: v1beta2.BGPPeerSpec{Address: addr, NodeSelectors: sels}}
+	return v1beta2.BGPPeer{Spec: v1beta2.BGPPeerSpec{Address: "1.2.3.4", NodeSelectors: sels}}
 }
 
 // hostNode returns a Node with the given kubernetes.io/hostname label.
@@ -621,14 +621,14 @@ func TestValidateFRR(t *testing.T) {
 		{
 			desc: "duplicate address, disjoint hostname selectors",
 			config: ClusterResources{
-				Peers: []v1beta2.BGPPeer{peerOnNodes("1.2.3.4", "node1"), peerOnNodes("1.2.3.4", "node2")},
+				Peers: []v1beta2.BGPPeer{peerOnNodes("node1"), peerOnNodes("node2")},
 				Nodes: []corev1.Node{hostNode("node1"), hostNode("node2")},
 			},
 		},
 		{
 			desc: "duplicate address, overlapping hostname selectors",
 			config: ClusterResources{
-				Peers: []v1beta2.BGPPeer{peerOnNodes("1.2.3.4", "node1"), peerOnNodes("1.2.3.4", "node1")},
+				Peers: []v1beta2.BGPPeer{peerOnNodes("node1"), peerOnNodes("node1")},
 				Nodes: []corev1.Node{hostNode("node1")},
 			},
 			mustFail: true,
@@ -638,7 +638,7 @@ func TestValidateFRR(t *testing.T) {
 			config: ClusterResources{
 				Peers: []v1beta2.BGPPeer{
 					{Spec: v1beta2.BGPPeerSpec{Address: "1.2.3.4"}}, // no selector = all nodes
-					peerOnNodes("1.2.3.4", "node1"),
+					peerOnNodes("node1"),
 				},
 				Nodes: []corev1.Node{hostNode("node1")},
 			},
@@ -647,7 +647,7 @@ func TestValidateFRR(t *testing.T) {
 		{
 			desc: "duplicate address, disjoint selectors but no nodes known (conservative)",
 			config: ClusterResources{
-				Peers: []v1beta2.BGPPeer{peerOnNodes("1.2.3.4", "node1"), peerOnNodes("1.2.3.4", "node2")},
+				Peers: []v1beta2.BGPPeer{peerOnNodes("node1"), peerOnNodes("node2")},
 				// No Nodes: conservative fallback must reject.
 			},
 			mustFail: true,
@@ -656,9 +656,9 @@ func TestValidateFRR(t *testing.T) {
 			desc: "three peers same address, all on distinct nodes",
 			config: ClusterResources{
 				Peers: []v1beta2.BGPPeer{
-					peerOnNodes("1.2.3.4", "node1"),
-					peerOnNodes("1.2.3.4", "node2"),
-					peerOnNodes("1.2.3.4", "node3"),
+					peerOnNodes("node1"),
+					peerOnNodes("node2"),
+					peerOnNodes("node3"),
 				},
 				Nodes: []corev1.Node{hostNode("node1"), hostNode("node2"), hostNode("node3")},
 			},
@@ -667,9 +667,9 @@ func TestValidateFRR(t *testing.T) {
 			desc: "three peers same address, third overlaps with first",
 			config: ClusterResources{
 				Peers: []v1beta2.BGPPeer{
-					peerOnNodes("1.2.3.4", "node1"),
-					peerOnNodes("1.2.3.4", "node2"),
-					peerOnNodes("1.2.3.4", "node1"), // collides with first peer
+					peerOnNodes("node1"),
+					peerOnNodes("node2"),
+					peerOnNodes("node1"), // collides with first peer
 				},
 				Nodes: []corev1.Node{hostNode("node1"), hostNode("node2")},
 			},
@@ -680,8 +680,8 @@ func TestValidateFRR(t *testing.T) {
 			// peer1: node1 OR node2; peer2: node3 OR node4 → no overlap
 			config: ClusterResources{
 				Peers: []v1beta2.BGPPeer{
-					peerOnNodes("1.2.3.4", "node1", "node2"),
-					peerOnNodes("1.2.3.4", "node3", "node4"),
+					peerOnNodes("node1", "node2"),
+					peerOnNodes("node3", "node4"),
 				},
 				Nodes: []corev1.Node{hostNode("node1"), hostNode("node2"), hostNode("node3"), hostNode("node4")},
 			},
@@ -691,8 +691,8 @@ func TestValidateFRR(t *testing.T) {
 			// peer1: node1 OR node2; peer2: node3 OR node2 → node2 overlaps
 			config: ClusterResources{
 				Peers: []v1beta2.BGPPeer{
-					peerOnNodes("1.2.3.4", "node1", "node2"),
-					peerOnNodes("1.2.3.4", "node3", "node2"),
+					peerOnNodes("node1", "node2"),
+					peerOnNodes("node3", "node2"),
 				},
 				Nodes: []corev1.Node{hostNode("node1"), hostNode("node2"), hostNode("node3")},
 			},
