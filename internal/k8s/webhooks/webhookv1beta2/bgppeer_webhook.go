@@ -18,10 +18,9 @@ package webhookv1beta2
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
-
-	"errors"
 
 	"github.com/go-kit/log/level"
 	"go.universe.tf/metallb/api/v1beta2"
